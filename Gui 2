@@ -1,0 +1,427 @@
+local pl = game.Players.LocalPlayer
+local pg = pl:WaitForChild("PlayerGui")
+local ch = pl.Character or pl.CharacterAdded:Wait()
+local hm = ch:WaitForChild("Humanoid")
+local an = hm:WaitForChild("Animator")
+local ts = game:GetService("TweenService")
+local ui = game:GetService("UserInputService")
+
+-- ── DANCIN HUB STYLE COLOURS ──────────────────────────────────────────────────
+local BG        = Color3.fromRGB(15, 15, 15)     -- main background
+local SURFACE   = Color3.fromRGB(32, 32, 32)     -- buttons / toggle track / key chips
+local SURFACE2  = Color3.fromRGB(28, 28, 28)     -- pressed state / link pill
+local TEXT_HI   = Color3.fromRGB(235, 235, 235)  -- primary text / title
+local TEXT_MID  = Color3.fromRGB(210, 210, 210)  -- label text
+local TEXT_LOW  = Color3.fromRGB(160, 160, 160)  -- description / muted
+local TEXT_DIM  = Color3.fromRGB(120, 120, 120)  -- very dim / inactive dot
+local KNOB      = Color3.fromRGB(220, 220, 220)  -- slider knob
+local WHITE     = Color3.fromRGB(255, 255, 255)
+
+-- ── SCREEN GUI ────────────────────────────────────────────────────────────────
+local sg = Instance.new("ScreenGui")
+sg.Name = "SkyBoxGUI"
+sg.ResetOnSpawn = false
+sg.Parent = pg
+
+-- ── MAIN FRAME ────────────────────────────────────────────────────────────────
+local mf = Instance.new("Frame")
+mf.Name = "MainFrame"
+mf.Size = UDim2.new(0, 300, 0, 118)
+mf.Position = UDim2.new(0.5, -150, 0.5, -59)
+mf.BackgroundColor3 = BG
+mf.BorderSizePixel = 0
+mf.Active = true
+mf.Parent = sg
+Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 5)
+
+-- ── TITLE BAR (draggable) ─────────────────────────────────────────────────────
+local tb = Instance.new("Frame")
+tb.Name = "TitleBar"
+tb.Size = UDim2.new(1, 0, 0, 32)
+tb.BackgroundTransparency = 1
+tb.BorderSizePixel = 0
+tb.Active = true
+tb.Parent = mf
+
+local dragging, dragStart, startPos = false, nil, nil
+tb.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mf.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+tb.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local d = input.Position - dragStart
+        mf.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    end
+end)
+
+-- Title label
+local tt = Instance.new("TextLabel")
+tt.Size = UDim2.new(1, -80, 1, 0)
+tt.Position = UDim2.new(0, 12, 0, 0)
+tt.BackgroundTransparency = 1
+tt.Text = "SKY BOX"
+tt.TextColor3 = TEXT_HI
+tt.TextSize = 13
+tt.Font = Enum.Font.GothamSemibold
+tt.TextXAlignment = Enum.TextXAlignment.Left
+tt.Parent = tb
+
+-- Minimize button (pill chip style)
+local mb = Instance.new("TextButton")
+mb.Size = UDim2.new(0, 28, 0, 18)
+mb.Position = UDim2.new(1, -62, 0.5, -9)
+mb.BackgroundTransparency = 1
+mb.Text = "−"
+mb.TextColor3 = TEXT_MID
+mb.TextSize = 14
+mb.Font = Enum.Font.GothamSemibold
+mb.BorderSizePixel = 0
+mb.Parent = tb
+Instance.new("UICorner", mb).CornerRadius = UDim.new(1, 0)
+
+-- Close button
+local cb = Instance.new("TextButton")
+cb.Size = UDim2.new(0, 28, 0, 18)
+cb.Position = UDim2.new(1, -30, 0.5, -9)
+cb.BackgroundTransparency = 1
+cb.Text = "×"
+cb.TextColor3 = TEXT_MID
+cb.TextSize = 15
+cb.Font = Enum.Font.GothamSemibold
+cb.BorderSizePixel = 0
+cb.Parent = tb
+Instance.new("UICorner", cb).CornerRadius = UDim.new(1, 0)
+
+-- Thin divider under title bar
+
+
+-- ── CONTENT FRAME ─────────────────────────────────────────────────────────────
+local cf = Instance.new("Frame")
+cf.Name = "ContentFrame"
+cf.Size = UDim2.new(1, -24, 1, -42)
+cf.Position = UDim2.new(0, 12, 0, 38)
+cf.BackgroundTransparency = 1
+cf.Parent = mf
+
+-- ── HIP HEIGHT ROW ────────────────────────────────────────────────────────────
+local hf = Instance.new("Frame")
+hf.Size = UDim2.new(1, 0, 0, 32)
+hf.Position = UDim2.new(0, 0, 0, 0)
+hf.BackgroundTransparency = 1
+hf.Parent = cf
+
+-- Value chip (right side)
+local hv = Instance.new("TextLabel")
+hv.Size = UDim2.new(0, 36, 0, 18)
+hv.Position = UDim2.new(1, -36, 0.5, -9)
+hv.BackgroundColor3 = SURFACE
+hv.Text = "0"
+hv.TextColor3 = TEXT_HI
+hv.TextSize = 13
+hv.Font = Enum.Font.GothamSemibold
+hv.TextXAlignment = Enum.TextXAlignment.Center
+hv.BorderSizePixel = 0
+hv.Parent = hf
+Instance.new("UICorner", hv).CornerRadius = UDim.new(1, 0)
+
+-- Slider track (shorter, centered horizontally)
+local sb = Instance.new("Frame")
+sb.Size = UDim2.new(0, 170, 0, 3)
+sb.Position = UDim2.new(0.5, -85, 0.5, -1)
+sb.BackgroundColor3 = SURFACE
+sb.BorderSizePixel = 0
+sb.Active = true
+sb.Parent = hf
+Instance.new("UICorner", sb).CornerRadius = UDim.new(1, 0)
+
+-- Slider fill
+local sf = Instance.new("Frame")
+sf.Size = UDim2.new(0, 0, 1, 0)
+sf.BackgroundColor3 = KNOB
+sf.BorderSizePixel = 0
+sf.Parent = sb
+Instance.new("UICorner", sf).CornerRadius = UDim.new(1, 0)
+
+-- Slider knob (smaller to match thin track)
+local sk = Instance.new("TextButton")
+sk.Size = UDim2.new(0, 14, 0, 14)
+sk.Position = UDim2.new(0, -7, 0.5, -7)
+sk.BackgroundColor3 = KNOB
+sk.Text = ""
+sk.BorderSizePixel = 0
+sk.Active = true
+sk.Parent = sb
+Instance.new("UICorner", sk).CornerRadius = UDim.new(1, 0)
+
+-- ── BUTTON ROW ────────────────────────────────────────────────────────────────
+local bf = Instance.new("Frame")
+bf.Name = "ButtonFrame"
+bf.Size = UDim2.new(1, 0, 0, 24)
+bf.Position = UDim2.new(0, 0, 0, 40)
+bf.BackgroundTransparency = 1
+bf.Parent = cf
+
+
+
+local function makeBtn(text, xPos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.32, -3, 1, 0)
+    btn.Position = UDim2.new(xPos, 0, 0, 0)
+    btn.BackgroundColor3 = SURFACE
+    btn.Text = text
+    btn.TextColor3 = TEXT_DIM
+    btn.TextSize = 11
+    btn.Font = Enum.Font.GothamSemibold
+    btn.BorderSizePixel = 0
+    btn.Parent = bf
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+    return btn
+end
+
+local t1 = makeBtn("Start",   0)
+local t2 = makeBtn("Reverse", 0.34)
+local t3 = makeBtn("Pause",   0.68)
+
+-- ── NOTIFICATION BANNER ───────────────────────────────────────────────────────
+local notifFrame = Instance.new("Frame")
+notifFrame.Name = "NotificationFrame"
+notifFrame.Size = UDim2.new(0, 660, 0, 110)
+notifFrame.Position = UDim2.new(0.5, -330, 0, 20)
+notifFrame.BackgroundColor3 = BG
+notifFrame.BorderSizePixel = 0
+notifFrame.Parent = sg
+Instance.new("UICorner", notifFrame).CornerRadius = UDim.new(0, 5)
+
+-- Close chip
+local notifClose = Instance.new("TextButton")
+notifClose.Size = UDim2.new(0, 28, 0, 18)
+notifClose.Position = UDim2.new(1, -34, 0, 10)
+notifClose.BackgroundColor3 = SURFACE
+notifClose.Text = "×"
+notifClose.TextColor3 = TEXT_LOW
+notifClose.TextSize = 15
+notifClose.Font = Enum.Font.GothamSemibold
+notifClose.BorderSizePixel = 0
+notifClose.Parent = notifFrame
+Instance.new("UICorner", notifClose).CornerRadius = UDim.new(1, 0)
+
+-- Main message
+local notifText = Instance.new("TextLabel")
+notifText.Size = UDim2.new(1, -60, 0, 22)
+notifText.Position = UDim2.new(0, 16, 0, 14)
+notifText.BackgroundTransparency = 1
+notifText.Text = "Equip the torso from the bundle below, or it won't work!"
+notifText.TextColor3 = TEXT_HI
+notifText.TextSize = 13
+notifText.Font = Enum.Font.Gotham
+notifText.TextWrapped = false
+notifText.TextXAlignment = Enum.TextXAlignment.Left
+notifText.Parent = notifFrame
+
+-- Divider
+
+
+local bundleLink = "https://www.roblox.com/bundles/148351107651039/pro-builder-very-old-and-outdated"
+
+-- Link pill (square right edge to connect flush with copy button)
+local linkPill = Instance.new("Frame")
+linkPill.Size = UDim2.new(1, -112, 0, 28)
+linkPill.Position = UDim2.new(0, 16, 0, 54)
+linkPill.BackgroundColor3 = SURFACE2
+linkPill.BorderSizePixel = 0
+linkPill.ClipsDescendants = true
+linkPill.Parent = notifFrame
+
+-- rounded left corners only via UICorner + mask trick: give full radius then cover right side
+local linkPillCorner = Instance.new("UICorner")
+linkPillCorner.CornerRadius = UDim.new(0, 6)
+linkPillCorner.Parent = linkPill
+
+-- square off the right side with a flush fill frame
+local linkPillMask = Instance.new("Frame")
+linkPillMask.Size = UDim2.new(0, 8, 1, 0)
+linkPillMask.Position = UDim2.new(1, -8, 0, 0)
+linkPillMask.BackgroundColor3 = SURFACE2
+linkPillMask.BorderSizePixel = 0
+linkPillMask.Parent = linkPill
+
+local linkText = Instance.new("TextLabel")
+linkText.Size = UDim2.new(1, -16, 1, 0)
+linkText.Position = UDim2.new(0, 12, 0, 0)
+linkText.BackgroundTransparency = 1
+linkText.Text = bundleLink
+linkText.TextColor3 = TEXT_LOW
+linkText.TextSize = 11
+linkText.Font = Enum.Font.Gotham
+linkText.TextXAlignment = Enum.TextXAlignment.Left
+linkText.TextTruncate = Enum.TextTruncate.AtEnd
+linkText.Parent = linkPill
+
+-- Copy button: square left edge, rounded right — flush against link pill
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(0, 80, 0, 28)
+copyBtn.Position = UDim2.new(1, -96, 0, 54)
+copyBtn.BackgroundColor3 = WHITE
+copyBtn.Text = "Copy"
+copyBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+copyBtn.TextSize = 12
+copyBtn.Font = Enum.Font.GothamSemibold
+copyBtn.BorderSizePixel = 0
+copyBtn.ClipsDescendants = true
+copyBtn.Parent = notifFrame
+
+local copyCorner = Instance.new("UICorner")
+copyCorner.CornerRadius = UDim.new(0, 6)
+copyCorner.Parent = copyBtn
+
+-- square off the left side
+local copyMask = Instance.new("Frame")
+copyMask.Size = UDim2.new(0, 8, 1, 0)
+copyMask.Position = UDim2.new(0, 0, 0, 0)
+copyMask.BackgroundColor3 = WHITE
+copyMask.BorderSizePixel = 0
+copyMask.Parent = copyBtn
+
+
+
+copyBtn.MouseButton1Click:Connect(function()
+    setclipboard(bundleLink)
+    copyBtn.Text = "Copied!"
+    task.wait(2)
+    copyBtn.Text = "Copy"
+end)
+
+notifClose.MouseButton1Click:Connect(function()
+    notifFrame:Destroy()
+end)
+
+-- ── ANIMATION LOGIC ───────────────────────────────────────────────────────────
+local ao = Instance.new("Animation")
+ao.AnimationId = "rbxassetid://70883871260184"
+
+local tr = nil
+local py = false
+local rv = false
+local ps = false
+local mn = false
+
+local sliderDragging = false
+local originalHipHeight = hm.HipHeight
+
+local function updateHipHeight(value)
+    local pc = math.clamp(value, 0, 1)
+    local ht = math.floor(originalHipHeight + (pc * 80))
+    hm.HipHeight = ht
+    hv.Text = tostring(ht)
+    sf.Size = UDim2.new(pc, 0, 1, 0)
+    sk.Position = UDim2.new(pc, -7, 0.5, -7)
+end
+
+sk.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = true
+    end
+end)
+sk.InputChanged:Connect(function(input)
+    if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateHipHeight((input.Position.X - sb.AbsolutePosition.X) / sb.AbsoluteSize.X)
+    end
+end)
+ui.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = false
+    end
+end)
+ui.InputChanged:Connect(function(input)
+    if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateHipHeight((input.Position.X - sb.AbsolutePosition.X) / sb.AbsoluteSize.X)
+    end
+end)
+sb.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        updateHipHeight((input.Position.X - sb.AbsolutePosition.X) / sb.AbsoluteSize.X)
+        sliderDragging = true
+    end
+end)
+
+updateHipHeight((hm.HipHeight - originalHipHeight) / 80)
+
+local function ld()
+    if tr then tr:Stop() end
+    tr = an:LoadAnimation(ao)
+    tr.Looped = true
+    tr.Priority = Enum.AnimationPriority.Action
+    tr:Play(0.05)
+    tr:AdjustSpeed(rv and -0.0001 or 0.0001)
+end
+
+local function up()
+    if not tr then return end
+    local sp = 0.0001
+    if rv then sp = -sp end
+    if ps then sp = 0 end
+    tr:AdjustSpeed(sp)
+end
+
+-- Active / inactive colour swap (reference: 240,240,240 active vs 120,120,120 dim)
+local function setActive(btn, active)
+    btn.TextColor3 = active and Color3.fromRGB(240, 240, 240) or TEXT_DIM
+end
+
+t1.MouseButton1Click:Connect(function()
+    py = not py
+    if py then
+        t1.Text = "Stop"
+        setActive(t1, true)
+        ld()
+    else
+        t1.Text = "Start"
+        setActive(t1, false)
+        if tr then tr:Stop(); tr = nil end
+        rv = false; ps = false
+        t2.Text = "Reverse"; setActive(t2, false)
+        t3.Text = "Pause";   setActive(t3, false)
+    end
+end)
+
+t2.MouseButton1Click:Connect(function()
+    if not py then return end
+    rv = not rv
+    t2.Text = rv and "Forward" or "Reverse"
+    setActive(t2, rv)
+    up()
+end)
+
+t3.MouseButton1Click:Connect(function()
+    if not py then return end
+    ps = not ps
+    t3.Text = ps and "Unpause" or "Pause"
+    setActive(t3, ps)
+    up()
+end)
+
+mb.MouseButton1Click:Connect(function()
+    mn = not mn
+    ts:Create(mf, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = mn and UDim2.new(0, 300, 0, 32) or UDim2.new(0, 300, 0, 118)
+    }):Play()
+    cf.Visible = not mn
+    mb.Text = mn and "+" or "−"
+end)
+
+cb.MouseButton1Click:Connect(function()
+    sg:Destroy()
+end)
+
+an.AnimationPlayed:Connect(function(tk)
+    task.defer(function()
+        if py and tk == tr then pcall(up) end
+    end)
+end)
